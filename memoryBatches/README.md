@@ -2,7 +2,7 @@
 
 The first approach is as follows:
 
-
-```java
-
+```bash
+# Run chunks of 1GB
+ ./test01 500000000  # running 2GB into 2 chunks of 1GB
 ```
