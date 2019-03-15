@@ -202,7 +202,7 @@ int writeBuffer1(long sizeToCopy, long offset, long numEvents, cl_event eventsTo
 	return 0;
 }
 
-void runKernel(long threadsToRun, long offset) {
+void runKernel(long threadsToRun, size_t offset) {
 	cl_int status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_A);
 	if (status != CL_SUCCESS) {
 			cout << "Error Kernel Parameters\n";
@@ -233,7 +233,7 @@ void runKernel(long threadsToRun, long offset) {
 
 void readBuffer(long sizeToCopyBack, long offset) {
 	// Read result back from device to host	
-	cl_int status = clEnqueueReadBuffer(commandQueue, d_A, CL_TRUE, 0, sizeToCopyBack, &A[offset], 0, NULL, &readEvent1);
+	cl_int status = clEnqueueReadBuffer(commandQueue, d_A, CL_FALSE, 0, sizeToCopyBack, &A[offset], 0, NULL, &readEvent1);
 	if (status != CL_SUCCESS) {
 		cout << "Error Reading Buffer. Error code: " << status << endl;
 		if (status == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
@@ -288,7 +288,7 @@ double median(vector<double> data) {
 int main(int argc, char **argv) {
 
 	if (argc > 1) {
-		elements = atoi(argv[1]);
+		elements = atol(argv[1]);
 		iterations = elements/floatElements512MB;
 	}
 
@@ -349,6 +349,8 @@ int main(int argc, char **argv) {
 		cout << "C++ total: " << total << endl;
 		cout << "\n";
 	}
+
+	clFlush(commandQueue);
 	
 	freeMemory();
 
