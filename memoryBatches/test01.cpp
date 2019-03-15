@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
 				if(((i+1) * 2) != A[i]) {
 					cout << "Expected: " << ((i+1) *  2)  << "  but found: " << (A[i]) << " in index: " << i << endl;
 					valid = false;
-					//break;
+					break;
 				}
 			}
 			if (valid) {
