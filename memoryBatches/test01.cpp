@@ -27,6 +27,8 @@ const bool CHECK_RESULT = true;
 const int PLATFORM_ID = 0;
 const bool DEBUG = true;
 
+const bool USE_PINNED_MEMORY = false;
+
 int elements = 1024;
 
 // Variables
@@ -151,12 +153,16 @@ int hostDataInitialization(int elements) {
 	datasize = sizeof(float)*elements;
 	cl_int status;
 
-	cl_mem ddA = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, datasize, NULL, &status);
-	if (status != CL_SUCCESS) {
-		cout << "Error allocating buffer on the HOST  (A)\n";
+	if (!USE_PINNED_MEMORY) {
+		cout << "Normal malloc" << endl;
+		A = (float*) malloc(datasize);
+	} else {
+		cl_mem ddA = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, datasize, NULL, &status);
+		if (status != CL_SUCCESS) {
+			cout << "Error allocating buffer on the HOST  (A)\n";
+		}
+		A = (float*) clEnqueueMapBuffer(commandQueue, ddA, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, NULL, NULL, NULL);
 	}
-
-	A = (float*) clEnqueueMapBuffer(commandQueue, ddA, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, NULL, NULL, NULL);
 
 	for (int i = 0; i < elements; i++) {
 		A[i] = i + 1;
@@ -165,14 +171,14 @@ int hostDataInitialization(int elements) {
 
 int allocateBuffersOnGPU() {
 	cl_int status;
-	int dataSize = elements * sizeof(float);
+	long dataSize = elements * sizeof(float);
  	d_A = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, NULL, &status);
 	if (status != CL_SUCCESS) {
 		cout << "Error allocating buffer on the GPU (A)\n";
 	}
 }
 
-int writeBuffer1(int sizeToCopy, int offset, int numEvents, cl_event eventsToWait[], cl_event *eventToWrite) {
+int writeBuffer1(long sizeToCopy, long offset, long numEvents, cl_event eventsToWait[], cl_event *eventToWrite) {
 	if (DEBUG) { 
 		cout << "[DEBUG] Size TO COPY: " << (sizeToCopy / sizeof(float)) << " Offset: " << offset<< endl;
 	}
@@ -186,7 +192,7 @@ int writeBuffer1(int sizeToCopy, int offset, int numEvents, cl_event eventsToWai
 	return 0;
 }
 
-int writeBuffer2(int sizeToCopy, int offset, int numEvents, cl_event eventsToWait[]) {
+int writeBuffer2(long sizeToCopy, long offset, long numEvents, cl_event eventsToWait[]) {
 	if (DEBUG) { 
 		cout << "[DEBUG] Size TO COPY: " << (sizeToCopy / sizeof(float)) << " Offset: " << offset<< endl;
 	}
@@ -229,8 +235,8 @@ int runKernel() {
 
 	// Read result back from device to host	
 	cl_event kernelEventsArray[] = {kernelEvent1};
-	int sizetoCopyBack = sizeof(float)*(elements/2);
-	int offsetBytes = sizeof(float)*(elements/2);
+	long sizetoCopyBack = sizeof(float)*(elements/2);
+	long offsetBytes = sizeof(float)*(elements/2);
 	status = clEnqueueReadBuffer(commandQueue, d_A, CL_TRUE, 0, sizetoCopyBack, A, 0, NULL, &readEvent1);
 	status = clEnqueueReadBuffer(commandQueue, d_A, CL_TRUE, offsetBytes, sizetoCopyBack, &A[(elements/2)], 0, NULL, &readEvent2);
 	if (status != CL_SUCCESS) {
@@ -308,7 +314,7 @@ int main(int argc, char **argv) {
 		readTime = 0;
 
 	  auto start_time = chrono::high_resolution_clock::now();
-		int size = elements / 2;
+		long size = elements / 2;
 		cl_event events1[] = { writeEvent1, writeEvent2 };
 	  cl_event events2[] = { writeEvent3, writeEvent4 };
 
