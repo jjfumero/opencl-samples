@@ -242,7 +242,6 @@ void readBuffer(long sizeToCopyBack, long offset) {
 	}
 }
 
-
 void freeMemory() {
 	clReleaseKernel(kernel);
 	clReleaseProgram(program);
@@ -369,7 +368,6 @@ int main(int argc, char **argv) {
 				cout << "Result is not correct" << endl;
 			}
 		}
-
 
 	// Compute median
 	double medianKernel = median(kernelTimers);
