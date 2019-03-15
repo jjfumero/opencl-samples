@@ -234,7 +234,10 @@ int runKernel() {
 	status = clEnqueueReadBuffer(commandQueue, d_A, CL_TRUE, 0, sizetoCopyBack, A, 0, NULL, &readEvent1);
 	status = clEnqueueReadBuffer(commandQueue, d_A, CL_TRUE, offsetBytes, sizetoCopyBack, &A[(elements/2)], 0, NULL, &readEvent2);
 	if (status != CL_SUCCESS) {
-		cout << "Error Reading Buffer\n";
+		cout << "Error Reading Buffer. Error code: " << status << endl;
+		if (status == CL_MEM_OBJECT_ALLOCATION_FAILURE) {
+			cout << "[ERROR] CL_MEM_OBJECT_ALLOCATION_FAILURE " << endl;
+		}
 	}
 }
 
