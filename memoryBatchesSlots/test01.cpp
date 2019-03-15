@@ -4,6 +4,11 @@
  * This strategy works when the host buffer size is bigger than the GPU global memory. 
  * 
  * Date: 15/03/2019
+ * 
+ * 2**31 = 2147483648 elements * 4 bytes (float ops) = 8GB of data
+ * 
+ * 512MB ~ 536870912 floats elements. 
+ * 
  */
 
 #include <iostream>
@@ -31,7 +36,9 @@ const bool DEBUG = true;
 
 const bool USE_PINNED_MEMORY = false;
 
-int elements = 1024;
+long elements          = 2147483648;
+const long floatElements512MB = 134217728;
+int iterations = elements/floatElements512MB;
 
 size_t datasize;
 float *A;	
@@ -149,13 +156,13 @@ int openclInitialization() {
 	}
 }
 
-// Alloc a big chunk of host memory > 2GB
-void hostDataInitialization(int elements) {
+// Alloc a big chunk of host memory > 8GB
+void hostDataInitialization(long elements) {
 	datasize = sizeof(float)*elements;
 	cl_int status;
 
 	if (!USE_PINNED_MEMORY) {
-		cout << "Normal malloc" << endl;
+		cout << "Normal malloc: " << elements << endl;
 		A = (float*) malloc(datasize);
 	} else {
 		cl_mem ddA = clCreateBuffer(context, CL_MEM_ALLOC_HOST_PTR, datasize, NULL, &status);
@@ -170,10 +177,10 @@ void hostDataInitialization(int elements) {
 	}
 }
 
-// On the GPU we alloc max of 1GB
-int allocateBuffersOnGPU(long bufferToAllocate) {
+// On the GPU we alloc max of 512MB
+int allocateBuffersOnGPU(long size) {
 	cl_int status;
- 	d_A = clCreateBuffer(context, CL_MEM_READ_WRITE, bufferToAllocate, NULL, &status);
+ 	d_A = clCreateBuffer(context, CL_MEM_READ_WRITE, size, NULL, &status);
 	if (status != CL_SUCCESS) {
 		cout << "Error allocating buffer on the GPU (A)\n";
 	}
@@ -185,7 +192,7 @@ int writeBuffer1(long sizeToCopy, long offset, long numEvents, cl_event eventsTo
 		cout << "[DEBUG] Size TO COPY: " << (sizeToCopy / sizeof(float)) << " Offset: " << offset<< endl;
 	}
 	// The key part is to start always in the index 0 for the device buffer
-	cl_int status = clEnqueueWriteBuffer(commandQueue, d_A, CL_TRUE, offset, sizeToCopy, &A[offset], numEvents, eventsToWait, eventToWrite);
+	cl_int status = clEnqueueWriteBuffer(commandQueue, d_A, CL_FALSE, 0, sizeToCopy, &A[offset], numEvents, eventsToWait, eventToWrite);
 	if (DEBUG) { 
 		cout << "\t[DEBUG] ERROR CODE: " << status << endl;
 	}
@@ -195,7 +202,7 @@ int writeBuffer1(long sizeToCopy, long offset, long numEvents, cl_event eventsTo
 	return 0;
 }
 
-void runKernel() {
+void runKernel(long threadsToRun, long offset) {
 	cl_int status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_A);
 	if (status != CL_SUCCESS) {
 			cout << "Error Kernel Parameters\n";
@@ -203,9 +210,11 @@ void runKernel() {
 
 	// lauch kernel 
 	size_t globalWorkSize[1];
-	globalWorkSize[0] = elements;
+	globalWorkSize[0] = threadsToRun;
 
-	status = clEnqueueNDRangeKernel(commandQueue,  kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &kernelEvent1);
+	size_t offsets[] = {offset};
+
+	status = clEnqueueNDRangeKernel(commandQueue,  kernel, 1, offsets, globalWorkSize, NULL, 0, NULL, &kernelEvent1);
 
 	if (status != CL_SUCCESS) {
 		cout << "Error in Launch\n";
@@ -280,6 +289,7 @@ int main(int argc, char **argv) {
 
 	if (argc > 1) {
 		elements = atoi(argv[1]);
+		iterations = elements/floatElements512MB;
 	}
 
 	cout << "OpenCL Big Copy Test " << endl;
@@ -292,20 +302,24 @@ int main(int argc, char **argv) {
 
 	openclInitialization();
 	hostDataInitialization(elements);
-	allocateBuffersOnGPU(elements * sizeof(float));
+	allocateBuffersOnGPU(floatElements512MB * sizeof(float));
 
-	for (int i = 0; i < 2; i++) {
+	// 16 slots of 512 MB  = 8GB
+	cout << "Number of Iterations: " << iterations << endl;
+	for (int i = 0; i < iterations; i++) {
 
 		kernelTime = 0;
 		writeTime = 0;
 		readTime = 0;
 
 	  auto start_time = chrono::high_resolution_clock::now();
-		long size = elements;
 		
-		writeBuffer1(size * sizeof(float), 0, 0, NULL, &writeEvent1);
-		runKernel();
-		readBuffer(size * sizeof(float), 0);
+		long offset = floatElements512MB * i;
+		long batchSize =  floatElements512MB * sizeof(4);
+
+		writeBuffer1(batchSize, offset, 0, NULL, &writeEvent1);
+		runKernel(floatElements512MB, 0);
+		readBuffer(batchSize, offset);
 
 	  auto end_time = chrono::high_resolution_clock::now();
 
@@ -327,11 +341,22 @@ int main(int argc, char **argv) {
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   	totalTime.push_back(total);	
 
-		if (CHECK_RESULT) {
+		// Print info ocl timers
+		cout << "Iteration: " << i << endl;
+		cout << "Write    : " <<  writeTime  << endl;
+		cout << "X        : " <<  kernelTime  << endl;
+		cout << "Reading  : " <<  readTime  << endl;
+		cout << "C++ total: " << total << endl;
+		cout << "\n";
+	}
+	
+	freeMemory();
+
+	if (CHECK_RESULT) {
 			bool valid = true;
 			for (int i = 0; i < elements; i++) {
-				if(((i+1) * 2) != A[i]) {
-					cout << "Expected: " << ((i+1) *  2)  << "  but found: " << (A[i]) << " in index: " << i << endl;
+				if( 100 != A[i]) {
+					cout << "Expected: " << 100  << "  but found: " << (A[i]) << " in index: " << i << endl;
 					valid = false;
 					break;
 				}
@@ -343,16 +368,6 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		// Print info ocl timers
-		cout << "Iteration: " << i << endl;
-		cout << "Write    : " <<  writeTime  << endl;
-		cout << "X        : " <<  kernelTime  << endl;
-		cout << "Reading  : " <<  readTime  << endl;
-		cout << "C++ total: " << total << endl;
-		cout << "\n";
-	}
-	
-	freeMemory();
 
 	// Compute median
 	double medianKernel = median(kernelTimers);
