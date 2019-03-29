@@ -36,7 +36,7 @@ const bool DEBUG = true;
 
 const bool USE_PINNED_MEMORY = false;
 
-long elements          = 2147483648;
+long elements          = 4294967296;
 const long floatElements512MB = 134217728;
 int iterations = elements/floatElements512MB;
 
@@ -173,7 +173,7 @@ void hostDataInitialization(long elements) {
 	}
 
 	for (long i = 0; i < elements; i++) {
-		A[i] = i + 1;
+		A[i] = i;
 	}
 }
 
@@ -212,9 +212,9 @@ void runKernel(long threadsToRun, size_t offset) {
 	size_t globalWorkSize[1];
 	globalWorkSize[0] = threadsToRun;
 
-	size_t offsets[] = {offset};
+	//size_t offsets[] = {offset};
 
-	status = clEnqueueNDRangeKernel(commandQueue,  kernel, 1, offsets, globalWorkSize, NULL, 0, NULL, &kernelEvent1);
+	status = clEnqueueNDRangeKernel(commandQueue,  kernel, 1, NULL, globalWorkSize, NULL, 0, NULL, &kernelEvent1);
 
 	if (status != CL_SUCCESS) {
 		cout << "Error in Launch\n";
@@ -228,7 +228,6 @@ void runKernel(long threadsToRun, size_t offset) {
 			cout << "[KERNEL] Out of HOST Memory \n";	
 		}
 	}
-
 }
 
 void readBuffer(long sizeToCopyBack, long offset) {
@@ -355,9 +354,9 @@ int main(int argc, char **argv) {
 
 	if (CHECK_RESULT) {
 			bool valid = true;
-			for (int i = 0; i < elements; i++) {
-				if( 100 != A[i]) {
-					cout << "Expected: " << 100  << "  but found: " << (A[i]) << " in index: " << i << endl;
+			for (long i = 0; i < elements; i++) {
+				if( i != A[i]) {
+					cout << "Expected: " << i  << "  but found: " << (A[i]) << " in index: " << i << endl;
 					valid = false;
 					break;
 				}
