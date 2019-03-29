@@ -106,6 +106,27 @@ char *readsource(const char *sourceFilename) {
 }
 
 
+int readBinaryFile(unsigned char **output, size_t *size, const char *name) {
+  FILE* fp = fopen(name, "rb");
+  if (!fp) {
+    return -1;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  *size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+
+  *output = (unsigned char *)malloc(*size);
+  if (!*output) {
+    fclose(fp);
+    return -1;
+  }
+
+  fread(*output, *size, 1, fp);
+  fclose(fp);
+  return 0;
+}
+
 int openclInitialization(const char* fileName, const char* kernelName) {
 
 	cl_int status;	
@@ -257,6 +278,25 @@ int openclInitialization(const char* fileName, const char* kernelName) {
         fclose(fp);
 	}
 
+	// PART III: Load the binary from the disc
+	unsigned char* binary = NULL;
+	size_t program_size = 0;
+	readBinaryFile(&binary, &program_size, "kernelBin.bin");
+
+	cl_device_id dev = devices[0];
+	program = clCreateProgramWithBinary(context, 1, &dev, &program_size, (const unsigned char **) &binary,  NULL, &status);
+	if (status != CL_SUCCESS) {
+		cout << "Error in clCreateProgramWithBinary" << endl;
+	}
+
+	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
+
+	// Query name of the kernel
+	char kernelBinaryName[100];
+	status = clGetProgramInfo(program, CL_PROGRAM_KERNEL_NAMES, sizeof(kernelBinaryName), &kernelBinaryName, &bytes_read); 
+	cout << "[QUERY BINARY] Kernel name: " << kernelBinaryName << endl;
+
+	
 	// Release memory
 	for(cl_uint i = 0; i < num_devices; i++) {
         delete(programBin[i]); 
@@ -264,8 +304,8 @@ int openclInitialization(const char* fileName, const char* kernelName) {
     delete(programBin);  
     delete(binarySize);
     delete (device_list);
+	free(binary);
 }
-
 
 void freeMemory() {
 	clReleaseKernel(kernel);
