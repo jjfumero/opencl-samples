@@ -200,7 +200,13 @@ int openclInitialization(const char* fileName, const char* kernelName) {
 		return 1;
 	}
 
-	// Install the binary: See "OpenCL Programming By Examples - Chapter 5"
+	// Check we can create the kernel object:
+	kernel = clCreateKernel(program, kernelName, &status);
+	if (status != CL_SUCCESS) {
+		cout << "Error creating the kernel object" << endl;
+	}
+
+	// Part II: Install the binary into disc: See "OpenCL Programming By Examples - Chapter 5"
     cl_uint num_devices;
     status = clGetContextInfo(context, CL_CONTEXT_NUM_DEVICES, sizeof(num_devices), &num_devices, NULL);
 	if (status != CL_SUCCESS) {
@@ -233,16 +239,12 @@ int openclInitialization(const char* fileName, const char* kernelName) {
 
 	char** programBin = new char*[num_devices];
 	for(cl_uint i = 0; i < num_devices; i++) {
+		cout << "Binary size of kernel device " << i << ": " << binarySize[i] << " (bytes)" << endl;
         programBin[i] = new char[binarySize[i]]; 
 	}
 	status = clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *) * num_devices, programBin, &bytes_read); 
 	if (status != CL_SUCCESS) {
 		cout << "Error in clGetProgramInfo (CL_PROGRAM_BINARIES): " << status << endl;
-	}
-	
-	kernel = clCreateKernel(program, kernelName, &status);
-	if (status != CL_SUCCESS) {
-		cout << "Error creating the kernel object" << endl;
 	}
 
 	// Now we write the binaries for each device
