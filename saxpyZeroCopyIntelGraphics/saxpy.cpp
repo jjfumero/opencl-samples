@@ -6,6 +6,7 @@
 #include <vector>
 #include <algorithm>
 #include "../common/readSource.h"
+#include <unistd.h>
 using namespace std;
 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
@@ -18,14 +19,11 @@ const bool CHECK_RESULT = true;
 	#include <CL/cl.h>
 #endif
 
-const int PLATFORM_ID = 0;
-
+int PLATFORM_ID = 0;
 int elements = 1024 * 1024 * 32;
 
-double alpha;
-
 // Variables
-
+double alpha;
 size_t datasize;
 double *A;	
 double *B;
@@ -159,15 +157,15 @@ int hostDataInitialization(int elements) {
 }
 
 int allocateBuffersOnGPU() {
-	cl_int status;
+	// cl_int status;
  	// d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, elements * sizeof(double), NULL, NULL);
 	// d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, elements * sizeof(double), NULL, NULL);
  	// d_C = clCreateBuffer(context, CL_MEM_WRITE_ONLY, elements * sizeof(double), NULL, NULL);
 }
 
 int writeBuffer() {
-	clEnqueueWriteBuffer(commandQueue, ddA, CL_FALSE, 0, elements * sizeof(double), A, 0, NULL, &writeEvent1);
-	clEnqueueWriteBuffer(commandQueue, ddB, CL_FALSE, 0, elements * sizeof(double), B, 0, NULL, &writeEvent2);
+	clEnqueueWriteBuffer(commandQueue, ddA, CL_TRUE, 0, elements * sizeof(double), A, 0, NULL, &writeEvent1);
+	clEnqueueWriteBuffer(commandQueue, ddB, CL_TRUE, 0, elements * sizeof(double), B, 0, NULL, &writeEvent2);
 }
 
 int runKernel() {
@@ -195,12 +193,11 @@ void freeMemory() {
 	clReleaseKernel(kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(commandQueue);
-	clReleaseMemObject(d_A);
-	clReleaseMemObject(d_B);
-	clReleaseMemObject(d_C);
+	clReleaseMemObject(ddA);
+	clReleaseMemObject(ddB);
+	clReleaseMemObject(ddC);
 	cl_int status = clReleaseContext(context);
 	status = clReleaseContext(context);
-
 	free(source);
 	free(platforms);
 	free(devices);
@@ -236,11 +233,41 @@ double median(vector<double> data) {
 	}
 }
 
+void printHelp() {
+	cout << "Options: \n";
+	cout << "\t -p <number>   Select an OpenCL Platform Number\n"; 
+	cout << "\t -s <size>     Select input size\n"; 
+}
+
+void processCommandLineOptions(int argc, char **argv) {
+	int option;
+	bool doHelp = false;
+	while ((option = getopt(argc, argv, ":p:s:h")) != -1) {
+        switch (option) {
+			case 's':
+				elements = atoi(optarg);
+				break;
+			case 'p':
+				PLATFORM_ID = atoi(optarg);
+				break;
+			case 'h':
+				doHelp = true;
+				break;
+			default:
+				cout << "Error" << endl;
+				break;
+		}
+	}
+	if (doHelp) {
+		printHelp();
+		exit(0);
+	}
+}
+
+
 int main(int argc, char **argv) {
 
-	if (argc > 1) {
-		elements = atoi(argv[1]);
-	}
+	processCommandLineOptions(argc, argv);
 
 	cout << "OpenCL Saxpy " << endl;
 	cout << "Size = " << elements << endl;
@@ -302,7 +329,7 @@ int main(int argc, char **argv) {
 		cout << "\n";
 	}
 	
-	//freeMemory();
+	freeMemory();
 
 	// Compute median
 	double medianKernel = median(kernelTimers);
