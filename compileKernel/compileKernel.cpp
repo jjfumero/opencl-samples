@@ -297,6 +297,8 @@ int openclInitialization(const char* fileName, const char* kernelName) {
 	cout << "[QUERY BINARY] Kernel name: " << kernelBinaryName << endl;
 
 	
+	cout << "[BINARY]       kernelBin.bin" << endl;
+
 	// Release memory
 	for(cl_uint i = 0; i < num_devices; i++) {
         delete(programBin[i]); 
