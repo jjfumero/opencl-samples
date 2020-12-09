@@ -25,7 +25,7 @@ const bool CHECK_RESULT = true;
 	#include <CL/cl.h>
 #endif
 
-const int PLATFORM_ID = 0;
+const int PLATFORM_ID = 1;
 
 int elements = 512;
 
@@ -146,7 +146,7 @@ int openclInitialization() {
 		abort();
 	}
 
-	kernel = clCreateKernel(program, "atomics", &status);
+	kernel = clCreateKernel(program, "atomics2", &status);
 	if (status != CL_SUCCESS) {
 		cout << "Error creating the kernel" << endl;
 		abort();
@@ -164,6 +164,7 @@ int hostDataInitialization(int elements) {
 	for (int i = 0; i < elements; i++) {
 		A[i] = 0;
 	}
+	counter[0] = 0;
 }
 
 int allocateBuffersOnGPU() {
