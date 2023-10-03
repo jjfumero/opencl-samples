@@ -130,7 +130,7 @@ int openclInitialization() {
 
 	cl_int buildErr;
 	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
-	kernel = clCreateKernel(program, "mxm", &status);
+	kernel = clCreateKernel(program, "mxmLI", &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
 	}
@@ -145,8 +145,8 @@ int hostDataInitialization(int elements) {
 
 	for (int i = 0; i < elements; i++) {
 		for (int j = 0; j < elements; j++) {
-		    A[i * elements + j] = 2.0f;
-		    B[i * elements + j] = 2.0f;
+		    A[i * elements + j] = rand() / (RAND_MAX);
+		    B[i * elements + j] = rand() / (RAND_MAX);
 		}
 	}
 }
@@ -315,6 +315,7 @@ int main(int argc, char **argv) {
 			for (int i = 0; i < elements; i++) {
 				for (int j = 0; j < elements; j++) {
 					if(abs(r[i * elements + j] - C[i * elements + j]) > 0.1) {
+						cout << r[i * elements + j] << " vs " <<  C[i * elements + j] << endl;
 						valid = false;
 						break;
 					}
