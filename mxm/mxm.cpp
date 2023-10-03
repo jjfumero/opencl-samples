@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <chrono>
 #include <vector>
+#include <cmath>
 #include <algorithm>
 #include "../common/readSource.h"
 #include <unistd.h>
@@ -10,7 +11,7 @@ using namespace std;
 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 
-const bool CHECK_RESULT = true;
+const bool CHECK_RESULT = false;
 
 #ifdef __APPLE__
 	#include <OpenCL/cl.h>
@@ -130,6 +131,9 @@ int openclInitialization() {
 	cl_int buildErr;
 	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
 	kernel = clCreateKernel(program, "mxm", &status);
+	if (status != CL_SUCCESS) {
+		std::cout << "clCreateKernel error" << std::endl;
+	}
 }
 
 int hostDataInitialization(int elements) {
@@ -294,6 +298,34 @@ int main(int argc, char **argv) {
 	
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   		totalTime.push_back(total);	
+
+		float* r = (float*)malloc(datasize);
+
+		if (CHECK_RESULT) {
+			for (int i = 0; i < elements; i++) {
+				for (int j = 0; j < elements; j++) {
+					r[i * elements + j] = 0;
+					for (int k = 0; k < elements; k++) {
+		    			r[i * elements + j] += A[i * elements + k] * B[k * elements + j];
+					}
+				}
+			}
+
+			bool valid = true;
+			for (int i = 0; i < elements; i++) {
+				for (int j = 0; j < elements; j++) {
+					if(abs(r[i * elements + j] - C[i * elements + j]) > 0.1) {
+						valid = false;
+						break;
+					}
+				}
+			}
+			if (valid) {
+				cout << "Result is correct" << endl;
+			} else {
+				cout << "Result is not correct" << endl;
+			}
+		}
 
 		// Print info ocl timers
 		cout << "Iteration: " << i << endl;
