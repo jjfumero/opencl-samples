@@ -130,7 +130,7 @@ int openclInitialization() {
 
 	cl_int buildErr;
 	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
-	kernel = clCreateKernel(program, "mxmLI", &status);
+	kernel = clCreateKernel(program, "mxm", &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
 	}
