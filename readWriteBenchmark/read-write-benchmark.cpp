@@ -4,6 +4,7 @@
 #include <chrono>
 #include <vector>
 #include <cmath>
+#include <numeric>
 #include <set>
 #include <algorithm>
 #include "../common/readSource.h"
@@ -165,7 +166,9 @@ int openclInitialization() {
 
 ulong getOffsetVersion() {
 	long offsetVersion = 0L;
-	if (VERSION == 16) {
+	if (VERSION == 0) {
+		offsetVersion = 0L;
+	} else if (VERSION == 16) {
 		offsetVersion = 16L;
 	} else if (VERSION == 20) {
 		offsetVersion = 20L;
@@ -249,6 +252,14 @@ void freeMemory() {
 	free(devices);
 }
 
+template<typename T>
+double getAverage(std::vector<T> const& v) {
+    if (v.empty()) {
+        return 0;
+    }
+    return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+}
+
 double median(vector<long> data) {
 	if(data.empty()) {
 		return 0;
@@ -262,6 +273,29 @@ double median(vector<long> data) {
 			return double(data[data.size()/2]);
 		}
 	}
+}
+
+
+double standardDeviation(vector<long> data) {
+	if(data.empty()) {
+		return 0;
+	}
+	double average = getAverage(data);
+	
+	vector<double> variance(data.size());
+	for (int i = 0; i < variance.size(); i++) {
+        variance[i] = pow((data[i] - average) , 2);
+    }
+
+	ulong count = data.size();
+	double sum = 0.0;
+	for (int i = 0; i < variance.size(); i++) {
+		sum += variance[i];
+	}
+
+	double varianceScalar = sum / count;
+    double stdValue = sqrt(varianceScalar);
+	return stdValue;
 }
 
 double median(vector<double> data) {
@@ -361,9 +395,12 @@ int main(int argc, char **argv) {
 		kernelTime = getTime(kernelEvent);
 		readTime = getTime(readEvent1);
 
-		kernelTimers.push_back(kernelTime);
-		writeTimers.push_back(writeTime);
-		readTimers.push_back(readTime);
+		if (i > 15) {
+			// We discard the first iteration
+			kernelTimers.push_back(kernelTime);
+			writeTimers.push_back(writeTime);
+			readTimers.push_back(readTime);
+		}
 	
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   		totalTime.push_back(total);	
@@ -405,10 +442,21 @@ int main(int argc, char **argv) {
 	double medianWrite = median(writeTimers);
 	double medianRead = median(readTimers);
 	double medianTotalTime = median(totalTime);
+
+	// STD 
+	double kernelAGV = getAverage(kernelTimers);
+	double kernelSTD = standardDeviation(kernelTimers);
 	
+	cout << "KERNEL " << endl;
 	cout << "Median KernelTime: " << medianKernel << " (ns)" << endl;
+	cout << "AVG    KernelTime: " << kernelAGV << " (ns)" << endl;
+	cout << "STD    KernelTime: " << kernelSTD << " (ns)" << endl;
+
+	cout << endl << "Transfers " << endl;
 	cout << "Median CopyInTime: " << medianWrite << " (ns)" << endl;
 	cout << "Median CopyOutTime: " << medianRead << " (ns)" << endl;
+
+	cout << endl << "Total " << endl;
 	cout << "Median TotalTime: " << medianTotalTime << " (ns)" << endl;
 
 	return 0;	
