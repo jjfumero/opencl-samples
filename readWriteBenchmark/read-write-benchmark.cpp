@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
 	hostDataInitialization(elements);
 	allocateBuffersOnGPU();
 
-	for (int i = 0; i < 11; i++) {
+	for (ulong i = 0; i < 100; i++) {
 
 		kernelTime = 0;
 		writeTime = 0;
