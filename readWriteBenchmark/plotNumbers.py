@@ -24,7 +24,7 @@ def plot(kernelTime, stdError, inputSizeString):
 
 def runPlots():
     ## 256MB
-    kernelTime = np.array([1.32E+06,	1318600,	1317860,	1317450,	1321190])
+    kernelTime =  np.array([1319850,	1318600,	1317860,	1317450,	1321190])
     stdError =    np.array([5479.09,	4893.69,	3603.21,	3909.52,	4257.92])
     plot(kernelTime, stdError, "256")
 
