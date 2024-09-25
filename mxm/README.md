@@ -17,11 +17,12 @@ make
 ### Options:
 
 ```bash
-./mxm -h 
+./mxm -h
 Options: 
 	 -p <number>       Select an OpenCL Platform Number
-	 -s <size>         Select input size
-	 -k <kernel name>  Input Kernel <mxm|mxmLI|mxmLIfma>
+	 -s <size>         Select input matrix size
+	 -k <kernel name>  Input Kernel <mxm | mxmLI | mxmLIfma | mxmLIfmaUnroll>
+	 -w <nThreads>     Select local work group size <nThreads x nThreads>. If not selected, then it sets to NULL
 	 -c                Check results
 	 -h                Show this help
 ```
@@ -33,5 +34,11 @@ Run on platform `1` with size `1024x1024`, checking results `on` and kernel `mxm
 
 ```bash
 ./mxm -c -p 1 -s 1024 -k mxmLI
+```
+
+Select mxmLI with a block of threads of 16x16
+
+```bash
+./mxm -s 1024 -k mxmLI -w 16
 ```
 

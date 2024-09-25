@@ -58,6 +58,7 @@ long getTime(cl_event event) {
 struct options {
     char* kernelName;
     bool checkResult;
+    int localWorkThreads;
 };
 
 int openclInitialization(const char* kernelName) {
@@ -130,7 +131,8 @@ int openclInitialization(const char* kernelName) {
 	program = clCreateProgramWithSource(context, 1, (const char**)&source, NULL, &status);
 
 	cl_int buildErr;
-	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
+    const char* compilerOptions = "-cl-mad-enable -cl-fast-relaxed-math -w";
+	buildErr = clBuildProgram(program, numDevices, devices, compilerOptions, NULL, NULL);
 	kernel = clCreateKernel(program, kernelName, &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
@@ -175,7 +177,7 @@ int writeBuffer() {
     return status;
 }
 
-void runKernel() {
+void runKernel(int localWorkThreads) {
 	cl_int status;
 	status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_A);
 	status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_B);
@@ -187,7 +189,25 @@ void runKernel() {
 	globalWorkSize[0] = elements;
 	globalWorkSize[1] = elements;
 	cl_event waitEventsKernel[] = {writeEvent1, writeEvent2};
-	clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalWorkSize, NULL, 2, waitEventsKernel, &kernelEvent);
+
+    size_t localWorkGroup[2];
+    if (localWorkThreads > 0) {
+        localWorkGroup[0] = localWorkThreads;
+        localWorkGroup[1] = localWorkThreads;
+    }
+
+	status = clEnqueueNDRangeKernel(commandQueue,
+                                    kernel,
+                                    2,
+                                    NULL,
+                                    globalWorkSize,
+                                    (localWorkThreads != 0) ? localWorkGroup : nullptr, 2,
+                                    waitEventsKernel,
+                                    &kernelEvent);
+    if (status != CL_SUCCESS) {
+        std::cout << "Error in clEnqueueNDRangeKernel: " << status << std::endl;
+        return;
+    }
 
 	kernelTime = getTime(kernelEvent);
 
@@ -243,8 +263,9 @@ double median(vector<double> data) {
 void printHelp() {
 	cout << "Options: \n";
 	cout << "\t -p <number>       Select an OpenCL Platform Number\n";
-	cout << "\t -s <size>         Select input size\n";
-    cout << "\t -k <kernel name>  Input Kernel <mxm|mxmLI>\n";
+	cout << "\t -s <size>         Select input matrix size\n";
+    cout << "\t -k <kernel name>  Input Kernel <mxm | mxmLI | mxmLIfma | mxmLIfmaUnroll>\n";
+    cout << "\t -w <nThreads>     Select local work group size <nThreads x nThreads>. If not selected, then it sets to NULL\n";
     cout << "\t -c                Check results\n";
     cout << "\t -h                Show this help\n";
 }
@@ -254,7 +275,8 @@ options processCommandLineOptions(int argc, char **argv) {
 	bool doHelp = false;
     char* kernelName = "mxm";
     bool checkResult = false;
-	while ((option = getopt(argc, argv, ":p:s:k:hc")) != -1) {
+    int localWorkThreads = 0;
+	while ((option = getopt(argc, argv, ":p:s:k:w:hc")) != -1) {
         switch (option) {
 			case 's':
 				elements = atoi(optarg);
@@ -269,6 +291,9 @@ options processCommandLineOptions(int argc, char **argv) {
             case 'c':
                 checkResult = true;
                 break;
+            case 'w':
+                localWorkThreads = atoi(optarg);
+                break;
 			case 'h':
 				doHelp = true;
 				break;
@@ -281,7 +306,7 @@ options processCommandLineOptions(int argc, char **argv) {
 		printHelp();
 		exit(0);
 	}
-    return options{ kernelName, checkResult} ;
+    return options{ kernelName, checkResult, localWorkThreads} ;
 }
 
 int main(int argc, char **argv) {
@@ -313,7 +338,7 @@ int main(int argc, char **argv) {
         if (i == 0) {
             writeBuffer();
         }
-		runKernel();
+		runKernel(op.localWorkThreads);
 	  	auto end_time = chrono::high_resolution_clock::now();
 
         if (i == 0) {
