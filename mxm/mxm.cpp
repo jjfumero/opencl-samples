@@ -9,9 +9,7 @@
 #include <unistd.h>
 using namespace std;
 
-#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
-
-const bool CHECK_RESULT = false;
+const bool CHECK_RESULT = true;
 
 #ifdef __APPLE__
 	#include <OpenCL/cl.h>
@@ -19,8 +17,8 @@ const bool CHECK_RESULT = false;
 	#include <CL/cl.h>
 #endif
 
-int PLATFORM_ID = 0;
-int elements = 1024;
+int PLATFORM_ID = 1;
+int elements = 16;
 
 // Variables
 size_t datasize;
@@ -130,13 +128,17 @@ int openclInitialization() {
 
 	cl_int buildErr;
 	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
-	kernel = clCreateKernel(program, "mxm", &status);
+    const char* kernelName = "mxmLI";
+	kernel = clCreateKernel(program, kernelName, &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
-	}
+	} else {
+        std::cout << "Kernel <" << kernelName << "> loaded" << std::endl;
+    }
+    return 0;
 }
 
-int hostDataInitialization(int elements) {
+void hostDataInitialization(int elements) {
 	datasize = sizeof(float)*elements * elements;
 
 	A = (float*) malloc(datasize);
@@ -145,25 +147,32 @@ int hostDataInitialization(int elements) {
 
 	for (int i = 0; i < elements; i++) {
 		for (int j = 0; j < elements; j++) {
-		    A[i * elements + j] = rand() / (RAND_MAX);
-		    B[i * elements + j] = rand() / (RAND_MAX);
+            float rA = rand() / double(RAND_MAX);
+            float rB = rand() / double(RAND_MAX);
+		    A[i * elements + j] = rA;
+		    B[i * elements + j] = rB;
 		}
 	}
 }
 
-int allocateBuffersOnGPU() {
-	cl_int status;
- 	d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, NULL);
-	d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, NULL);
- 	d_C = clCreateBuffer(context, CL_MEM_WRITE_ONLY, datasize, NULL, NULL);
+cl_int allocateBuffersOnGPU() {
+	cl_int statusA;
+    cl_int statusB;
+    cl_int statusC;
+ 	d_A = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, &statusA);
+	d_B = clCreateBuffer(context, CL_MEM_READ_ONLY, datasize, NULL, &statusB);
+ 	d_C = clCreateBuffer(context, CL_MEM_WRITE_ONLY, datasize, NULL, &statusC);
+    return statusA | statusB | statusC;
 }
 
 int writeBuffer() {
-	clEnqueueWriteBuffer(commandQueue, d_A, CL_TRUE, 0, datasize, A, 0, NULL, &writeEvent1);
-	clEnqueueWriteBuffer(commandQueue, d_B, CL_TRUE, 0, datasize, B, 0, NULL, &writeEvent2);
+    cl_int status;
+	status = clEnqueueWriteBuffer(commandQueue, d_A, CL_TRUE, 0, datasize, A, 0, NULL, &writeEvent1);
+	status |= clEnqueueWriteBuffer(commandQueue, d_B, CL_TRUE, 0, datasize, B, 0, NULL, &writeEvent2);
+    return status;
 }
 
-int runKernel() {
+void runKernel() {
 	cl_int status;
 	status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_A);
 	status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_B);
@@ -191,8 +200,8 @@ void freeMemory() {
 	clReleaseMemObject(d_A);
 	clReleaseMemObject(d_B);
 	clReleaseMemObject(d_C);
-	cl_int status = clReleaseContext(context);
-	status = clReleaseContext(context);
+	clReleaseContext(context);
+	clReleaseContext(context);
 	free(source);
 	free(platforms);
 	free(devices);
@@ -259,7 +268,6 @@ void processCommandLineOptions(int argc, char **argv) {
 	}
 }
 
-
 int main(int argc, char **argv) {
 
 	processCommandLineOptions(argc, argv);
@@ -299,27 +307,30 @@ int main(int argc, char **argv) {
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   		totalTime.push_back(total);	
 
-		float* r = (float*)malloc(datasize);
-
 		if (CHECK_RESULT) {
-			for (int i = 0; i < elements; i++) {
-				for (int j = 0; j < elements; j++) {
-					r[i * elements + j] = 0;
+            auto* resultSeq = (float*) malloc(datasize);
+			for (int idx = 0; idx < elements; idx++) {
+				for (int jdx = 0; jdx < elements; jdx++) {
+					float sum = 0;
 					for (int k = 0; k < elements; k++) {
-		    			r[i * elements + j] += A[i * elements + k] * B[k * elements + j];
+		    			sum += A[idx * elements + k] * B[k * elements + jdx];
 					}
+                    resultSeq[idx * elements + jdx] = sum;
 				}
 			}
 
 			bool valid = true;
-			for (int i = 0; i < elements; i++) {
-				for (int j = 0; j < elements; j++) {
-					if(abs(r[i * elements + j] - C[i * elements + j]) > 0.1) {
-						cout << r[i * elements + j] << " vs " <<  C[i * elements + j] << endl;
+			for (int idx = 0; idx < elements; idx++) {
+				for (int jdx = 0; jdx < elements; jdx++) {
+					if(abs(resultSeq[idx * elements + jdx] - C[idx * elements + jdx]) > 0.01) {
+						cout << resultSeq[idx * elements + jdx] << " vs " << C[idx * elements + jdx] << endl;
 						valid = false;
 						break;
 					}
 				}
+                if (!valid) {
+                    break;
+                }
 			}
 			if (valid) {
 				cout << "Result is correct" << endl;

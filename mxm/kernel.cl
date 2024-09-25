@@ -1,26 +1,26 @@
-__kernel void mxm(__global float *a,  __global float *b, __global float *c, int size) {	
+__kernel void mxm(__global float *a,  __global float *b, __global float *c, const int n) {
 
 	uint idx = get_global_id(0);
 	uint jdx = get_global_id(1);
 
-	float sum = 0.0f;
-	for (int k = 0; k < size; k++) {
-		sum += a[idx * size + k] * b[k * size + jdx];
+	float sum = 0.0;
+	for (int k = 0; k < n; k++) {
+		sum += a[idx * n + k] * b[k * n + jdx];
 	}
 
-	c[idx * size + jdx]  =  sum;
+	c[idx * n + jdx]  =  sum;
 }
 
 
-__kernel void mxmLI(__global float *a,  __global float *b, __global float *c, int size) {	
+__kernel void mxmLI(__global float *a,  __global float *b, __global float *c, int n) {
 
 	uint idx = get_global_id(1);
 	uint jdx = get_global_id(0);
 
 	float sum = 0.0f;
-	for (int k = 0; k < size; k++) {
-		sum += a[idx * size + k] * b[k * size + jdx];
+	for (int k = 0; k < n; k++) {
+		sum += a[idx * n + k] * b[k * n + jdx];
 	}
 
-	c[idx * size + jdx]  =  sum;
+	c[idx * n + jdx]  =  sum;
 }
