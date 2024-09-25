@@ -29,9 +29,9 @@ Options:
 
 #### Examples:
 
-
-Run on platform 1 with size `1024x1024`, checking results and kernel `mxmLI`:
+Run on platform `1` with size `1024x1024`, checking results `on` and kernel `mxmLI`:
 
 ```bash
 ./mxm -c -p 1 -s 1024 -k mxmLI
 ```
+
