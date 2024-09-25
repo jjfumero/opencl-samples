@@ -301,17 +301,23 @@ int main(int argc, char **argv) {
 		readTime = 0;
 
 	    auto start_time = chrono::high_resolution_clock::now();
-		writeBuffer();
+        if (i == 0) {
+            writeBuffer();
+        }
 		runKernel();
 	  	auto end_time = chrono::high_resolution_clock::now();
 
-		writeTime = getTime(writeEvent1);
-		writeTime += getTime(writeEvent2);
+        if (i == 0) {
+            writeTime = getTime(writeEvent1);
+            writeTime += getTime(writeEvent2);
+        }
 		kernelTime = getTime(kernelEvent);
 		readTime = getTime(readEvent1);
 
 		kernelTimers.push_back(kernelTime);
-		writeTimers.push_back(writeTime);
+        if (i == 0) {
+            writeTimers.push_back(writeTime);
+        }
 		readTimers.push_back(readTime);
 	
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
