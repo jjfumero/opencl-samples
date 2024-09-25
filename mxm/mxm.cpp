@@ -9,7 +9,7 @@
 #include <unistd.h>
 using namespace std;
 
-const bool CHECK_RESULT = true;
+const bool CHECK_RESULT = false;
 
 #ifdef __APPLE__
 	#include <OpenCL/cl.h>
@@ -18,7 +18,7 @@ const bool CHECK_RESULT = true;
 #endif
 
 int PLATFORM_ID = 1;
-int elements = 16;
+int elements = 1024;
 
 // Variables
 size_t datasize;
@@ -57,7 +57,7 @@ long getTime(cl_event event) {
     return (time_end - time_start);
 }
 
-int openclInitialization() {
+int openclInitialization(const char* kernelName) {
 
 	cl_int status;	
 	cl_uint numPlatforms = 0;
@@ -128,10 +128,10 @@ int openclInitialization() {
 
 	cl_int buildErr;
 	buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
-    const char* kernelName = "mxmLI";
 	kernel = clCreateKernel(program, kernelName, &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
+        return -1;
 	} else {
         std::cout << "Kernel <" << kernelName << "> loaded" << std::endl;
     }
@@ -239,14 +239,16 @@ double median(vector<double> data) {
 
 void printHelp() {
 	cout << "Options: \n";
-	cout << "\t -p <number>   Select an OpenCL Platform Number\n"; 
-	cout << "\t -s <size>     Select input size\n"; 
+	cout << "\t -p <number>       Select an OpenCL Platform Number\n";
+	cout << "\t -s <size>         Select input size\n";
+    cout << "\t -k <kernel name>  Input Kernel <mxm|mxmLI>\n";
 }
 
-void processCommandLineOptions(int argc, char **argv) {
+const char* processCommandLineOptions(int argc, char **argv) {
 	int option;
 	bool doHelp = false;
-	while ((option = getopt(argc, argv, ":p:s:h")) != -1) {
+    char* kernelName = "mxm";
+	while ((option = getopt(argc, argv, ":p:s:k:h")) != -1) {
         switch (option) {
 			case 's':
 				elements = atoi(optarg);
@@ -254,6 +256,10 @@ void processCommandLineOptions(int argc, char **argv) {
 			case 'p':
 				PLATFORM_ID = atoi(optarg);
 				break;
+            case 'k':
+                kernelName = optarg;
+                std::cout << "KernelName selected: " << kernelName << std::endl;
+                break;
 			case 'h':
 				doHelp = true;
 				break;
@@ -266,11 +272,12 @@ void processCommandLineOptions(int argc, char **argv) {
 		printHelp();
 		exit(0);
 	}
+    return kernelName;
 }
 
 int main(int argc, char **argv) {
 
-	processCommandLineOptions(argc, argv);
+	const char* kernelName = processCommandLineOptions(argc, argv);
 
 	cout << "OpenCL MxM " << endl;
 	cout << "Size = " << elements << "x" << elements << endl;
@@ -280,11 +287,14 @@ int main(int argc, char **argv) {
 	vector<long> readTimers;
 	vector<double> totalTime;
 
-	openclInitialization();
+	int errorCode = openclInitialization(kernelName);
+    if (errorCode != 0) {
+        return -1;
+    }
 	hostDataInitialization(elements);
 	allocateBuffersOnGPU();
 
-	for (int i = 0; i < 11; i++) {
+	for (int i = 0; i < 101; i++) {
 
 		kernelTime = 0;
 		writeTime = 0;
