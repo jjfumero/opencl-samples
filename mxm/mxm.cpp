@@ -9,8 +9,6 @@
 #include <unistd.h>
 using namespace std;
 
-const bool CHECK_RESULT = false;
-
 #ifdef __APPLE__
 	#include <OpenCL/cl.h>
 #else
@@ -56,6 +54,11 @@ long getTime(cl_event event) {
     clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
     return (time_end - time_start);
 }
+
+struct options {
+    char* kernelName;
+    bool checkResult;
+};
 
 int openclInitialization(const char* kernelName) {
 
@@ -242,13 +245,16 @@ void printHelp() {
 	cout << "\t -p <number>       Select an OpenCL Platform Number\n";
 	cout << "\t -s <size>         Select input size\n";
     cout << "\t -k <kernel name>  Input Kernel <mxm|mxmLI>\n";
+    cout << "\t -c                Check results\n";
+    cout << "\t -h                Show this help\n";
 }
 
-const char* processCommandLineOptions(int argc, char **argv) {
+options processCommandLineOptions(int argc, char **argv) {
 	int option;
 	bool doHelp = false;
     char* kernelName = "mxm";
-	while ((option = getopt(argc, argv, ":p:s:k:h")) != -1) {
+    bool checkResult = false;
+	while ((option = getopt(argc, argv, ":p:s:k:hc")) != -1) {
         switch (option) {
 			case 's':
 				elements = atoi(optarg);
@@ -259,6 +265,9 @@ const char* processCommandLineOptions(int argc, char **argv) {
             case 'k':
                 kernelName = optarg;
                 std::cout << "KernelName selected: " << kernelName << std::endl;
+                break;
+            case 'c':
+                checkResult = true;
                 break;
 			case 'h':
 				doHelp = true;
@@ -272,12 +281,12 @@ const char* processCommandLineOptions(int argc, char **argv) {
 		printHelp();
 		exit(0);
 	}
-    return kernelName;
+    return options{ kernelName, checkResult} ;
 }
 
 int main(int argc, char **argv) {
 
-	const char* kernelName = processCommandLineOptions(argc, argv);
+	options op = processCommandLineOptions(argc, argv);
 
 	cout << "OpenCL MxM " << endl;
 	cout << "Size = " << elements << "x" << elements << endl;
@@ -287,7 +296,7 @@ int main(int argc, char **argv) {
 	vector<long> readTimers;
 	vector<double> totalTime;
 
-	int errorCode = openclInitialization(kernelName);
+	int errorCode = openclInitialization(op.kernelName);
     if (errorCode != 0) {
         return -1;
     }
@@ -323,7 +332,7 @@ int main(int argc, char **argv) {
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   		totalTime.push_back(total);	
 
-		if (CHECK_RESULT) {
+		if (op.checkResult) {
             auto* resultSeq = (float*) malloc(datasize);
 			for (int idx = 0; idx < elements; idx++) {
 				for (int jdx = 0; jdx < elements; jdx++) {
