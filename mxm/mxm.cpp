@@ -59,9 +59,10 @@ struct options {
     char* kernelName;
     bool checkResult;
     int localWorkThreads;
+	bool compilerFlags;
 };
 
-int openclInitialization(const char* kernelName) {
+int openclInitialization(const char* kernelName, bool compilerFlags) {
 
 	cl_int status;	
 	cl_uint numPlatforms = 0;
@@ -146,7 +147,12 @@ int openclInitialization(const char* kernelName) {
 
 	cl_int buildErr;
     const char* compilerOptions = "-cl-mad-enable -cl-fast-relaxed-math -w";
-	buildErr = clBuildProgram(program, numDevices, devices, compilerOptions, NULL, NULL);
+	buildErr = clBuildProgram(program, 
+	    numDevices, 
+		devices, 
+		compilerFlags ? compilerOptions : "", 
+		NULL, 
+		NULL);
 	kernel = clCreateKernel(program, kernelName, &status);
 	if (status != CL_SUCCESS) {
 		std::cout << "clCreateKernel error" << std::endl;
@@ -281,6 +287,7 @@ void printHelp() {
 	cout << "\t -s <size>         Select input matrix size\n";
     cout << "\t -k <kernel name>  Input Kernel <mxm | mxmLI | mxmLIfma | mxmLIfmaUnroll>\n";
     cout << "\t -w <nThreads>     Select local work group size <nThreads x nThreads>. If not selected, then it sets to NULL\n";
+	cout << "\t -f                Apply optimizations in the compiler flags when building the kernel (-cl-mad-enable -cl-fast-relaxed-math -w)\n";
     cout << "\t -c                Check results\n";
     cout << "\t -h                Show this help\n";
 }
@@ -291,7 +298,8 @@ options processCommandLineOptions(int argc, char **argv) {
     char* kernelName = "mxm";
     bool checkResult = false;
     int localWorkThreads = 0;
-	while ((option = getopt(argc, argv, ":p:s:k:w:hc")) != -1) {
+	bool applyCompilerFlags = false;
+	while ((option = getopt(argc, argv, ":p:s:k:w:hcf")) != -1) {
         switch (option) {
 			case 's':
 				elements = atoi(optarg);
@@ -310,6 +318,9 @@ options processCommandLineOptions(int argc, char **argv) {
                 localWorkThreads = atoi(optarg);
 				std::cout << "Selecting LWG = " << localWorkThreads << std::endl;
                 break;
+			case 'f':
+				applyCompilerFlags = true;
+				break;
 			case 'h':
 				doHelp = true;
 				break;
@@ -322,7 +333,7 @@ options processCommandLineOptions(int argc, char **argv) {
 		printHelp();
 		exit(0);
 	}
-    return options{ kernelName, checkResult, localWorkThreads} ;
+    return options{ kernelName, checkResult, localWorkThreads, applyCompilerFlags} ;
 }
 
 int main(int argc, char **argv) {
@@ -337,7 +348,7 @@ int main(int argc, char **argv) {
 	vector<long> readTimers;
 	vector<double> totalTime;
 
-	int errorCode = openclInitialization(op.kernelName);
+	int errorCode = openclInitialization(op.kernelName, op.compilerFlags);
     if (errorCode != 0) {
         return -1;
     }
