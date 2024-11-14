@@ -85,15 +85,15 @@ int openclInitialization(const char* kernelName) {
 		return -1;
 	}	
 
-	cout << numPlatforms <<  " has been detected" << endl;
+	cout << "[INFO] " << numPlatforms <<  " has been detected" << endl;
 	for (int i = 0; i < numPlatforms; i++) {
 		char buf[10000];
-		cout << "Platform: " << i << endl;
+		cout << "[INFO] Platform: " << i << endl;
 		status = clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, sizeof(buf), buf, NULL);
 		if (i == PLATFORM_ID) {
 			platformName += buf;
 		}
-		cout << "\tVendor: " << buf << endl;
+		cout << "\t[INFO] Vendor: " << buf << endl;
 		status = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(buf), buf, NULL);
 	}
 
@@ -101,7 +101,7 @@ int openclInitialization(const char* kernelName) {
 	cl_uint numDevices = 0;
 
 	cl_platform_id platform = platforms[PLATFORM_ID];
-	std::cout << "Using platform: " << PLATFORM_ID << " --> " << platformName << std::endl;
+	std::cout << "[INFO] Using platform: " << PLATFORM_ID << " --> " << platformName << std::endl;
 
 	status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
 	
@@ -114,6 +114,20 @@ int openclInitialization(const char* kernelName) {
 		devices = (cl_device_id*) malloc(numDevices*sizeof(cl_device_id));
 		status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
 	}
+
+	// Print device name and index
+	int device_index = 0;
+	cl_device_id device = devices[device_index];
+	char device_name[1024];
+  	size_t name_size;
+  	status = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, &name_size);
+  	if (status != CL_SUCCESS) {
+    	std::cout << "Error: clGetDeviceInfo failed!\n";
+    	exit(1);
+  	}
+
+  	// Print the device name
+  	std::cout << "[INFO] Using Device with Index: " << device_index << " -> name: " <<  device_name << std::endl;
 	
 	context = clCreateContext(NULL, numDevices, devices, NULL, NULL, &status);
 	if (context == NULL) {
@@ -138,7 +152,7 @@ int openclInitialization(const char* kernelName) {
 		std::cout << "clCreateKernel error" << std::endl;
         return -1;
 	} else {
-        std::cout << "Kernel <" << kernelName << "> loaded" << std::endl;
+        std::cout << "[INFO] Kernel <" << kernelName << "> loaded" << std::endl;
     }
     return 0;
 }
@@ -315,8 +329,8 @@ int main(int argc, char **argv) {
 
 	options op = processCommandLineOptions(argc, argv);
 
-	cout << "OpenCL MxM " << endl;
-	cout << "Size = " << elements << "x" << elements << endl;
+	cout << "[INFO] OpenCL MxM " << endl;
+	cout << "[INFO] Size = " << elements << "x" << elements << endl;
 
 	vector<long> kernelTimers;
 	vector<long> writeTimers;
