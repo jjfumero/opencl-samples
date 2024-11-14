@@ -42,3 +42,15 @@ Select mxmLI with a block of threads of 16x16
 ./mxm -s 1024 -k mxmLI -w 16
 ```
 
+
+### Benchmarking 
+
+```bash
+./benchmarks.sh <platformNumber>
+
+## Then check the generated log* directory
+
+# Filter Total C++ timers for each configuration 
+
+./filter.sh log_2024-11-14_10_52_34/mxm 
+```
