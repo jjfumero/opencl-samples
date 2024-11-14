@@ -33,8 +33,12 @@ echo "./mxm -p $platform -s 1024 -k mxmLIfmaUnroll > $logFolder/mxmLIfmaUnroll"
 ./mxm -p $platform -s 1024 -k mxmLIfmaUnroll > $logFolder/mxmLIfmaUnroll
 sleep 10
 
-## mxmLIfmaUnroll with Thread Block = 16
-echo "./mxm -p $platform -s 1024 -k mxmLIfmaUnroll -w 16 > $logFolder/mxmLIfmaUnrollBlock16"
-./mxm -p $platform -s 1024 -k mxmLIfmaUnroll -w 16 > $logFolder/mxmLIfmaUnrollBlock16
+## mxmLIfmaUnroll with CompilerOptions
+echo "./mxm -p $platform -s 1024 -f -k mxmLIfmaUnroll > $logFolder/mxmLIfmaUnrollWithFlags"
+./mxm -p $platform -s 1024 -f -k mxmLIfmaUnroll > $logFolder/mxmLIfmaUnrollWithFlags
 sleep 10
 
+## mxmLIfmaUnroll with Thread Block = 16
+echo "./mxm -p $platform -s 1024 -k mxmLIfmaUnroll -w 16 > $logFolder/mxmLIfmaUnrollBlock16WithFlags"
+./mxm -p $platform -s 1024 -f -k mxmLIfmaUnroll -w 16 > $logFolder/mxmLIfmaUnrollBlock16WithFlags
+sleep 10
