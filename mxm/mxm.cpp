@@ -195,15 +195,16 @@ void runKernel(int localWorkThreads) {
         localWorkGroup[0] = localWorkThreads;
         localWorkGroup[1] = localWorkThreads;
     }
-
-	status = clEnqueueNDRangeKernel(commandQueue,
-                                    kernel,
-                                    2,
-                                    NULL,
-                                    globalWorkSize,
-                                    (localWorkThreads != 0) ? localWorkGroup : nullptr, 2,
-                                    waitEventsKernel,
-                                    &kernelEvent);
+ 
+	status = clEnqueueNDRangeKernel(commandQueue,        // command queue object
+                                    kernel,              // kernel object
+                                    2,                   // dimensions
+                                    NULL,                // global offset 
+                                    globalWorkSize,      // total num threads 
+                                    (localWorkThreads != 0) ? localWorkGroup : nullptr,  // localWorkGroup
+									2,                   // num events to wait
+                                    waitEventsKernel,    // array with wait event objects
+                                    &kernelEvent);       // kernel event
     if (status != CL_SUCCESS) {
         std::cout << "Error in clEnqueueNDRangeKernel: " << status << std::endl;
         return;
@@ -293,6 +294,7 @@ options processCommandLineOptions(int argc, char **argv) {
                 break;
             case 'w':
                 localWorkThreads = atoi(optarg);
+				std::cout << "Selecting LWG = " << localWorkThreads << std::endl;
                 break;
 			case 'h':
 				doHelp = true;
