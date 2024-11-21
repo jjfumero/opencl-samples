@@ -1,3 +1,5 @@
+// vim: set tabstop=4
+
 #include <iostream>
 #include <string>
 #include <sys/time.h>
@@ -192,8 +194,8 @@ cl_int allocateBuffersOnGPU() {
 
 int writeBuffer() {
     cl_int status;
-	status = clEnqueueWriteBuffer(commandQueue, d_A, CL_TRUE, 0, datasize, A, 0, NULL, &writeEvent1);
-	status |= clEnqueueWriteBuffer(commandQueue, d_B, CL_TRUE, 0, datasize, B, 0, NULL, &writeEvent2);
+	status  = clEnqueueWriteBuffer(commandQueue, d_A, CL_FALSE, 0, datasize, A, 0, NULL, &writeEvent1);
+	status |= clEnqueueWriteBuffer(commandQueue, d_B, CL_FALSE, 0, datasize, B, 0, NULL, &writeEvent2);
     return status;
 }
 
@@ -208,7 +210,7 @@ void runKernel(int localWorkThreads) {
 	size_t globalWorkSize[2];
 	globalWorkSize[0] = elements;
 	globalWorkSize[1] = elements;
-	cl_event waitEventsKernel[] = {writeEvent1, writeEvent2};
+	cl_event waitEventsForKernel[] = { writeEvent1, writeEvent2 };
 
     size_t localWorkGroup[2];
     if (localWorkThreads > 0) {
@@ -223,7 +225,7 @@ void runKernel(int localWorkThreads) {
                                     globalWorkSize,      // total num threads 
                                     (localWorkThreads != 0) ? localWorkGroup : nullptr,  // localWorkGroup
 									2,                   // num events to wait
-                                    waitEventsKernel,    // array with wait event objects
+                                    waitEventsForKernel, // array with wait event objects
                                     &kernelEvent);       // kernel event
     if (status != CL_SUCCESS) {
         std::cout << "Error in clEnqueueNDRangeKernel: " << status << std::endl;
@@ -234,7 +236,7 @@ void runKernel(int localWorkThreads) {
 
 	// Read result back from device to host	
 	cl_event waitEventsRead[] = {kernelEvent};
-	clEnqueueReadBuffer(commandQueue, d_C, CL_TRUE, 0,  datasize, C, 1, waitEventsKernel, &readEvent1);
+	clEnqueueReadBuffer(commandQueue, d_C, CL_TRUE, 0,  datasize, C, 1, waitEventsRead, &readEvent1);
 }
 
 void freeMemory() {
@@ -353,21 +355,30 @@ int main(int argc, char **argv) {
         return -1;
     }
 	hostDataInitialization(elements);
-	allocateBuffersOnGPU();
+	cl_int status = allocateBuffersOnGPU();
+	if (status != CL_SUCCESS) {
+		std::cout << "Error allocating memory on the GPU\n";
+		return -1;
+	}
 
-	for (int i = 0; i < 101; i++) {
+	for (int i = 0; i < 100; i++) {
 
 		kernelTime = 0;
 		writeTime = 0;
 		readTime = 0;
 
 	    auto start_time = chrono::high_resolution_clock::now();
+		
+		// To mimic what TornadoVM does, read-only data is transferred in the first iteration
+		// If benchmarking includes copy in (host->device), then delete the if condition
         if (i == 0) {
             writeBuffer();
         }
+		// Run kernel includes copy out (device->host)
 		runKernel(op.localWorkThreads);
 	  	auto end_time = chrono::high_resolution_clock::now();
 
+		// Obtain all timers (writes, kernel, read)
         if (i == 0) {
             writeTime = getTime(writeEvent1);
             writeTime += getTime(writeEvent2);
@@ -375,15 +386,16 @@ int main(int argc, char **argv) {
 		kernelTime = getTime(kernelEvent);
 		readTime = getTime(readEvent1);
 
+		// Push timers
 		kernelTimers.push_back(kernelTime);
-        if (i == 0) {
+		if (i == 0) {
             writeTimers.push_back(writeTime);
         }
 		readTimers.push_back(readTime);
-	
 		double total = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
   		totalTime.push_back(total);	
 
+		// Check result
 		if (op.checkResult) {
             auto* resultSeq = (float*) malloc(datasize);
 			for (int idx = 0; idx < elements; idx++) {
@@ -416,7 +428,7 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		// Print info ocl timers
+		// Print info OpenCL Timers and C++ Total time
 		cout << "Iteration: " << i << endl;
 		cout << "Write    : " <<  writeTime  << endl;
 		cout << "X        : " <<  kernelTime  << endl;
@@ -425,6 +437,7 @@ int main(int argc, char **argv) {
 		cout << "\n";
 	}
 	
+	// Free GPU resources
 	freeMemory();
 
 	// Compute median
