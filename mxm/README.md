@@ -23,6 +23,7 @@ Options:
 	 -s <size>         Select input matrix size
 	 -k <kernel name>  Input Kernel <mxm | mxmLI | mxmLIfma | mxmLIfmaUnroll>
 	 -w <nThreads>     Select local work group size <nThreads x nThreads>. If not selected, then it sets to NULL
+	 -f                Apply optimizations in the compiler flags when building the kernel (-cl-mad-enable -cl-fast-relaxed-math -w)
 	 -c                Check results
 	 -h                Show this help
 ```
